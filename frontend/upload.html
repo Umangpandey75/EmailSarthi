@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV Contacts | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <div class="row g-4">
+            <!-- Upload Settings & Dropzone (Left or Single Column) -->
+            <div class="col-lg-5">
+                <div class="card-glass p-4 h-100">
+                    <h5 class="fw-bold mb-3">Import Contacts</h5>
+                    
+                    <form id="uploadForm">
+                        <div class="mb-3">
+                            <label for="campaignSelect" class="form-label fw-semibold text-secondary small">Assign to Campaign</label>
+                            <select class="form-select form-control-premium" id="campaignSelect" name="campaign_id" required>
+                                <option value="new" selected>+ Create a new campaign</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3" id="newCampaignGroup">
+                            <label for="newCampaignName" class="form-label fw-semibold text-secondary small">New Campaign Name</label>
+                            <input type="text" class="form-control form-control-premium" id="newCampaignName" name="new_campaign_name" placeholder="e.g. Summer Newsletter 2026" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-secondary small">Choose CSV or Excel File</label>
+                            <!-- Drag & Drop Zone -->
+                            <div class="upload-dropzone" id="dropzone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p class="mb-1 fw-semibold text-primary">Click to upload or drag & drop</p>
+                                <p class="text-secondary small mb-0">Supported formats: CSV, Excel (XLSX, XLS, XLSB, ODS)</p>
+                                <input type="file" id="csvFileInput" name="csv_file" accept=".csv, .xlsx, .xls, .xlsm, .xlsb, .ods" class="d-none" required>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between mb-4 bg-body p-3 rounded border border-color">
+                            <span class="small text-secondary fw-medium">Need a template?</span>
+                            <a href="data:text/csv;charset=utf-8,email,name%0Ajohn@example.com,John%0Aalex@example.com,Alex%0Ainvalid-email-here,DuplicateName%0Ajohn@example.com,John" download="sample_contacts.csv" class="btn btn-outline-secondary btn-sm border-color text-secondary hover-bg-light">
+                                <i class="fas fa-download me-1"></i> Download Sample CSV
+                            </a>
+                        </div>
+                        
+                        <button type="submit" id="submitBtn" class="btn btn-premium w-100 py-2.5 text-white" disabled>
+                            <i class="fas fa-file-import me-1"></i> Import Contacts
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Parser Preview and Validation Logs (Right Side) -->
+            <div class="col-lg-7">
+                <div class="card-glass p-4 h-100 d-flex flex-column" id="previewContainer" style="display: none !important;">
+                    <h5 class="fw-bold mb-3">CSV Parsing Preview</h5>
+                    
+                    <!-- Statistics Cards -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-sm-3">
+                            <div class="bg-body border border-color rounded p-2 text-center">
+                                <div class="text-secondary" style="font-size: 0.75rem;">Total Rows</div>
+                                <div class="fw-bold text-primary" id="statTotal">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="bg-body border border-color rounded p-2 text-center">
+                                <div class="text-secondary" style="font-size: 0.75rem;">Valid Emails</div>
+                                <div class="fw-bold text-success" id="statValid">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="bg-body border border-color rounded p-2 text-center">
+                                <div class="text-secondary" style="font-size: 0.75rem;">Duplicates</div>
+                                <div class="fw-bold text-warning" id="statDuplicates">0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-sm-3">
+                            <div class="bg-body border border-color rounded p-2 text-center">
+                                <div class="text-secondary" style="font-size: 0.75rem;">Invalid format</div>
+                                <div class="fw-bold text-danger" id="statInvalid">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Table -->
+                    <div class="table-responsive flex-grow-1 border border-color rounded mb-3" style="max-height: 250px;">
+                        <table class="table-premium table-sm">
+                            <thead>
+                                <tr>
+                                    <th class="py-2" style="width: 45px;"><input type="checkbox" id="selectAllContacts" checked></th>
+                                    <th class="py-2">Email</th>
+                                    <th class="py-2">Name</th>
+                                    <th class="py-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody">
+                                <!-- Rows rendered dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning mb-0 border-0 bg-warning-light text-warning small py-2 d-none" id="duplicateAlert">
+                        <i class="fas fa-exclamation-triangle me-1"></i> Duplicate emails will be automatically filtered out during import.
+                    </div>
+                </div>
+                
+                <!-- Placeholder Empty State -->
+                <div class="card-glass p-4 h-100 d-flex flex-column align-items-center justify-content-center text-center text-secondary" id="previewPlaceholder">
+                    <i class="fas fa-file-excel fa-3x mb-3 opacity-30"></i>
+                    <h6 class="fw-bold mb-1">No file parsed yet</h6>
+                    <p class="small mb-0 opacity-60">Upload or drag a CSV file on the left to see statistics, formats, and duplicates preview.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const campaignSelect = document.getElementById('campaignSelect');
+        const newCampaignGroup = document.getElementById('newCampaignGroup');
+        const newCampaignName = document.getElementById('newCampaignName');
+        
+        const previewContainer = document.getElementById('previewContainer');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const previewTableBody = document.getElementById('previewTableBody');
+        const submitBtn = document.getElementById('submitBtn');
+        const form = document.getElementById('uploadForm');
+        
+        // Stats elements
+        const statTotal = document.getElementById('statTotal');
+        const statValid = document.getElementById('statValid');
+        const statDuplicates = document.getElementById('statDuplicates');
+        const statInvalid = document.getElementById('statInvalid');
+        const duplicateAlert = document.getElementById('duplicateAlert');
+        
+        let parsedContactsList = [];
+
+        document.addEventListener('appReady', async () => {
+            // Fetch Draft Campaigns to populate select list
+            try {
+                const response = await apiFetch('/api/campaigns');
+                if (response.ok) {
+                    const data = await response.json();
+                    const draftCampaigns = data.campaigns.filter(c => c.status === 'Draft');
+                    
+                    // Clear previous dynamic options
+                    while (campaignSelect.options.length > 1) {
+                        campaignSelect.remove(1);
+                    }
+                    
+                    draftCampaigns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = `${c.name} (Draft)`;
+                        campaignSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching campaigns list:', err);
+            }
+        });
+
+        // Toggle visibility of new campaign name field
+        campaignSelect.addEventListener('change', () => {
+            if (campaignSelect.value === 'new') {
+                newCampaignGroup.style.display = 'block';
+                newCampaignName.required = true;
+            } else {
+                newCampaignGroup.style.display = 'none';
+                newCampaignName.required = false;
+            }
+        });
+
+        // Dropzone interactions
+        dropzone.addEventListener('click', () => csvFileInput.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('bg-primary-light');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('bg-primary-light');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('bg-primary-light');
+            if (e.dataTransfer.files.length > 0) {
+                csvFileInput.files = e.dataTransfer.files;
+                handleFileSelection(e.dataTransfer.files[0]);
+            }
+        });
+
+        csvFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        function parseSpreadsheetFile(file, onProgress, onComplete, onError) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to raw array of rows
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    
+                    if (rows.length === 0) {
+                        onError("The file is empty.");
+                        return;
+                    }
+                    
+                    // Smart header mapping
+                    const headers = rows[0].map(h => String(h).trim().toLowerCase());
+                    
+                    // Look for email index
+                    let emailIndex = -1;
+                    const emailTerms = ['email', 'email address', 'emailid', 'email_address', 'mail', 'mail address', 'contact email'];
+                    for (const term of emailTerms) {
+                        emailIndex = headers.indexOf(term);
+                        if (emailIndex !== -1) break;
+                    }
+                    if (emailIndex === -1) {
+                        emailIndex = headers.findIndex(h => h.includes('email') || h.includes('mail'));
+                    }
+                    
+                    if (emailIndex === -1) {
+                        onError("Required 'email' column not found. Header row must contain a column named 'email', 'email address', or 'mail'.");
+                        return;
+                    }
+                    
+                    // Look for name index
+                    let nameIndex = -1;
+                    const nameTerms = ['name', 'full name', 'fullname', 'contact name', 'recipient name', 'customer name', 'username', 'first name'];
+                    for (const term of nameTerms) {
+                        nameIndex = headers.indexOf(term);
+                        if (nameIndex !== -1) break;
+                    }
+                    if (nameIndex === -1) {
+                        nameIndex = headers.findIndex(h => h.includes('name'));
+                    }
+                    
+                    const contacts = [];
+                    const duplicates = [];
+                    const invalid = [];
+                    const seenEmails = new Set();
+                    
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0 || row.every(cell => String(cell).trim() === "")) continue; // Skip empty rows
+                        
+                        const email = String(row[emailIndex] || '').trim();
+                        const name = nameIndex !== -1 && row[nameIndex] ? String(row[nameIndex]).trim() : '';
+                        
+                        if (!email) continue;
+                        
+                        const isValidEmail = emailRegex.test(email);
+                        
+                        if (!isValidEmail) {
+                            invalid.push({ email, name, rowNum: i + 1, error: 'Invalid format' });
+                        } else if (seenEmails.has(email.toLowerCase())) {
+                            duplicates.push({ email, name, rowNum: i + 1 });
+                        } else {
+                            seenEmails.add(email.toLowerCase());
+                            contacts.push({ email, name });
+                        }
+                    }
+                    
+                    onComplete({
+                        contacts,
+                        duplicates,
+                        invalid,
+                        totalRows: rows.length - 1
+                    });
+                } catch (err) {
+                    onError("Failed to parse sheet: " + err.message);
+                }
+            };
+            
+            reader.onerror = function() {
+                onError("Failed to read the file.");
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleFileSelection(file) {
+            const dropzoneText = dropzone.querySelector('p');
+            dropzoneText.textContent = `Selected: ${file.name}`;
+            
+            parseSpreadsheetFile(
+                file,
+                null,
+                (data) => {
+                    previewPlaceholder.setAttribute('style', 'display: none !important;');
+                    previewContainer.setAttribute('style', 'display: flex !important;');
+                    
+                    // Map unique valid contacts and store them
+                    parsedContactsList = data.contacts.map((c, idx) => ({ ...c, enabled: true, index: idx }));
+                    
+                    statTotal.textContent = data.totalRows;
+                    statDuplicates.textContent = data.duplicates.length;
+                    statInvalid.textContent = data.invalid.length;
+                    
+                    updateSelectionCounts();
+                    
+                    if (data.duplicates.length > 0) {
+                        duplicateAlert.classList.remove('d-none');
+                    } else {
+                        duplicateAlert.classList.add('d-none');
+                    }
+                    
+                    // Reset Select All checkbox state
+                    const selectAllCheck = document.getElementById('selectAllContacts');
+                    if (selectAllCheck) selectAllCheck.checked = true;
+
+                    // Table Render
+                    previewTableBody.innerHTML = '';
+                    
+                    const displayRows = [];
+                    // Render up to 500 valid contacts, and up to 20 duplicates / 20 invalid contacts
+                    parsedContactsList.slice(0, 500).forEach(c => displayRows.push({ ...c, status: 'Valid' }));
+                    data.duplicates.slice(0, 20).forEach(c => displayRows.push({ ...c, status: 'Duplicate' }));
+                    data.invalid.slice(0, 20).forEach(c => displayRows.push({ ...c, status: 'Invalid' }));
+                    
+                    if (displayRows.length === 0) {
+                        previewTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No rows found.</td></tr>`;
+                        return;
+                    }
+                    
+                    displayRows.forEach(row => {
+                        let badgeClass = 'badge-pending';
+                        if (row.status === 'Valid') badgeClass = 'badge-sent';
+                        if (row.status === 'Duplicate') badgeClass = 'badge-paused';
+                        if (row.status === 'Invalid') badgeClass = 'badge-failed';
+                        
+                        const isCheckboxDisabled = row.status !== 'Valid' ? 'disabled' : '';
+                        const isCheckboxChecked = (row.status === 'Valid' && row.enabled) ? 'checked' : '';
+                        const checkboxHtml = `<input type="checkbox" class="contact-select-checkbox" data-index="${row.index !== undefined ? row.index : ''}" ${isCheckboxChecked} ${isCheckboxDisabled}>`;
+                        
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${checkboxHtml}</td>
+                            <td><div class="text-truncate" style="max-width: 200px;">${row.email}</div></td>
+                            <td>${row.name || '<span class="text-muted opacity-50">-</span>'}</td>
+                            <td><span class="badge-premium ${badgeClass}">${row.status}</span></td>
+                        `;
+                        previewTableBody.appendChild(tr);
+                    });
+                    
+                    // Add truncation notice if there are more
+                    const totalCalculated = data.contacts.length + data.duplicates.length + data.invalid.length;
+                    const totalDisplayed = displayRows.length;
+                    if (totalCalculated > totalDisplayed) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td colspan="4" class="text-center text-muted small py-2">
+                                ... and ${totalCalculated - totalDisplayed} more rows not shown in preview.
+                            </td>
+                        `;
+                        previewTableBody.appendChild(tr);
+                    }
+                    
+                    showToast('File Loaded', `Parsed ${data.totalRows} contacts.`, 'success');
+                },
+                (err) => {
+                    showToast('Upload Error', err, 'error');
+                    submitBtn.disabled = true;
+                    previewPlaceholder.setAttribute('style', 'display: flex !important;');
+                    previewContainer.setAttribute('style', 'display: none !important;');
+                    dropzoneText.textContent = "Click to upload or drag & drop";
+                }
+            );
+        }
+
+        // Handle individual checkbox selection toggle
+        previewTableBody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('contact-select-checkbox')) {
+                const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                if (!isNaN(idx) && parsedContactsList[idx]) {
+                    parsedContactsList[idx].enabled = e.target.checked;
+                    updateSelectionCounts();
+                }
+            }
+        });
+
+        // Handle Select All checkbox toggle
+        document.getElementById('selectAllContacts').addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            parsedContactsList.forEach(c => c.enabled = isChecked);
+            
+            const checkboxes = document.querySelectorAll('.contact-select-checkbox');
+            checkboxes.forEach(cb => {
+                if (!cb.disabled) {
+                    cb.checked = isChecked;
+                }
+            });
+            updateSelectionCounts();
+        });
+
+        function updateSelectionCounts() {
+            const totalValid = parsedContactsList.length;
+            const selectedCount = parsedContactsList.filter(c => c.enabled).length;
+            
+            statValid.textContent = `${selectedCount} / ${totalValid}`;
+            submitBtn.disabled = selectedCount === 0;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Importing...';
+            
+            const selectedContacts = parsedContactsList.filter(c => c.enabled).map(c => ({
+                email: c.email,
+                name: c.name
+            }));
+            
+            const payload = {
+                campaign_id: campaignSelect.value,
+                new_campaign_name: newCampaignName.value.trim(),
+                contacts: selectedContacts
+            };
+            
+            try {
+                const response = await apiFetch('/api/upload', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showToast('Import Success', data.message || 'Contacts imported.', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                } else {
+                    showToast('Import Failed', data.message || 'Import failed.', 'danger');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-file-import me-1"></i> Import Contacts';
+                }
+            } catch (err) {
+                console.error(err);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-file-import me-1"></i> Import Contacts';
+            }
+        });
+    </script>
+</body>
+</html>

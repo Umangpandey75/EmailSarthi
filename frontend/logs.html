@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Logs | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <div class="card-glass p-4 mb-4">
+            <!-- Filter and Action Row -->
+            <form id="filterForm" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="searchQuery" class="form-label fw-semibold text-secondary small">Search Recipients</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent border-end-0 border-color text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control form-control-premium border-start-0 ps-0" id="searchQuery" placeholder="Enter name or email address...">
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label fw-semibold text-secondary small">Filter by Status</label>
+                    <select class="form-select form-control-premium" id="statusFilter">
+                        <option value="" selected>All Delivery States</option>
+                        <option value="Sent">Sent (Success)</option>
+                        <option value="Failed">Failed (Error)</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary flex-grow-1 border-color">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-premium dropdown-toggle text-white" type="button" id="downloadLogsMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download me-1"></i> Export Logs
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="downloadLogsMenu">
+                            <li><a class="dropdown-item" href="#" onclick="downloadCSV('all')"><i class="fas fa-file-csv me-2 text-primary"></i> Download All Logs (.csv)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="downloadCSV('sent')"><i class="fas fa-check-circle me-2 text-success"></i> Download Sent Logs (.csv)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="downloadCSV('failed')"><i class="fas fa-exclamation-circle me-2 text-danger"></i> Download Failed Logs (.csv)</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Logs List Card -->
+        <div class="card-glass">
+            <div class="table-responsive">
+                <table class="table-premium">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Campaign</th>
+                            <th>Recipient Name</th>
+                            <th>Recipient Email</th>
+                            <th>Status</th>
+                            <th>Detail / Error Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-secondary">
+                                <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                                Loading logs...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        const form = document.getElementById('filterForm');
+        const searchQuery = document.getElementById('searchQuery');
+        const statusFilter = document.getElementById('statusFilter');
+        const tbody = document.getElementById('logsTableBody');
+
+        document.addEventListener('appReady', () => {
+            loadLogs();
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadLogs();
+        });
+
+        async function loadLogs() {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-secondary">
+                        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                        Loading logs...
+                    </td>
+                </tr>
+            `;
+            
+            const q = searchQuery.value.trim();
+            const status = statusFilter.value;
+            
+            let url = `/api/logs?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`;
+            
+            try {
+                const response = await apiFetch(url);
+                if (!response.ok) throw new Error('Failed to fetch logs');
+                
+                const data = await response.json();
+                renderLogs(data.logs);
+            } catch (err) {
+                console.error(err);
+                showToast('Error', 'Failed to retrieve delivery logs.', 'danger');
+            }
+        }
+
+        function renderLogs(logs) {
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-secondary">
+                            <i class="fas fa-list-check fa-2x mb-2 d-block opacity-50"></i>
+                            No delivery logs found matching the filters.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = logs.map(log => {
+                const statusBadge = log.status === 'Sent' ? 
+                    '<span class="badge-premium badge-sent"><i class="fas fa-check"></i> Sent</span>' : 
+                    '<span class="badge-premium badge-failed"><i class="fas fa-times"></i> Failed</span>';
+                
+                const statusDetail = log.status === 'Sent' ?
+                    '<span class="text-success small"><i class="fas fa-circle-check me-1"></i> Dispatched to recipient SMTP</span>' :
+                    `<span class="text-danger small fw-medium" title="${log.error_message}"><i class="fas fa-triangle-exclamation me-1"></i> ${log.error_message}</span>`;
+                
+                return `
+                    <tr>
+                        <td class="text-nowrap">${log.timestamp}</td>
+                        <td>
+                            <span class="fw-semibold text-dark-emphasis">${log.campaign_name}</span>
+                        </td>
+                        <td>
+                            <span class="fw-medium">${log.contact_name || '<span class="text-muted opacity-50">-</span>'}</span>
+                        </td>
+                        <td>
+                            <span class="fw-semibold text-primary-emphasis">${log.contact_email}</span>
+                        </td>
+                        <td>
+                            ${statusBadge}
+                        </td>
+                        <td>
+                            ${statusDetail}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function downloadCSV(type) {
+            try {
+                showToast('Exporting', 'Preparing CSV download...', 'info');
+                const response = await apiFetch(`/api/logs/download/${type}`);
+                if (!response.ok) throw new Error('Download failed');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+                a.download = `email_logs_${type}_${dateStr}.csv`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                showToast('Export Success', `Downloaded ${type} logs CSV.`, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Error', 'Failed to export logs CSV.', 'danger');
+            }
+        }
+        window.downloadCSV = downloadCSV;
+    </script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Composer | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Quill Rich Text Editor CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+    
+    <style>
+        .fs-7 { font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <div class="row g-4">
+            <!-- Editor Panel (Left Column) -->
+            <div class="col-lg-7">
+                <div class="card-glass p-4 h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="fw-bold mb-0">Compose Message</h5>
+                        <!-- Template Selection -->
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="templateSelector" class="small text-secondary text-nowrap fw-semibold">Load Template:</label>
+                            <select class="form-select form-control-premium py-1 fs-7" id="templateSelector" style="max-width: 180px;">
+                                <option value="" selected>-- Select --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <form id="composerForm">
+                        <!-- Target Campaign Selection -->
+                        <div class="mb-3">
+                            <label for="targetCampaign" class="form-label fw-semibold text-secondary small">Target Campaign</label>
+                            <select class="form-select form-control-premium" id="targetCampaign" name="campaign_id" required>
+                                <option value="" disabled selected>-- Select Campaign List --</option>
+                            </select>
+                            <div class="form-text text-secondary" style="font-size: 0.75rem;">Select a campaign list created during CSV upload.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subject" class="form-label fw-semibold text-secondary small">Email Subject</label>
+                            <input type="text" class="form-control form-control-premium" id="subject" name="subject" placeholder="Enter email subject" required>
+                        </div>
+                        
+                        <!-- Personalisation Variables Block -->
+                        <div class="mb-2 d-flex flex-wrap gap-2 align-items-center">
+                            <span class="small text-secondary fw-medium">Insert Tag:</span>
+                            <button type="button" class="var-pill" onclick="insertVariable('{name}')">
+                                <i class="fas fa-tag"></i> {name}
+                            </button>
+                            <button type="button" class="var-pill" onclick="insertVariable('{email}')">
+                                <i class="fas fa-tag"></i> {email}
+                            </button>
+                        </div>
+
+                        <!-- Quill WYSIWYG Container -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small d-block">Email Body (HTML/Rich Text)</label>
+                            <div id="editor"></div>
+                            <input type="hidden" id="body_html" name="body_html">
+                        </div>
+
+                        <!-- Attachments Group -->
+                        <div class="mb-3">
+                            <label for="attachments" class="form-label fw-semibold text-secondary small">Email Attachments (Optional)</label>
+                            <input type="file" class="form-control form-control-premium" id="attachments" name="attachments" multiple>
+                            <div class="form-text text-secondary" style="font-size: 0.75rem;">Hold Ctrl/Cmd to select multiple files.</div>
+                            
+                            <div id="existingAttachmentsContainer" class="mt-2" style="display: none;">
+                                <span class="small fw-semibold text-secondary d-block mb-1">Uploaded Campaign Attachments:</span>
+                                <div id="existingAttachmentsList" class="d-flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Save Options -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="saveAsTemplate" name="save_as_template" value="true">
+                            <label class="form-check-label text-secondary small fw-medium" for="saveAsTemplate">
+                                Save this configuration to my Template Library
+                            </label>
+                        </div>
+                        
+                        <div class="mb-3" id="templateNameGroup" style="display: none;">
+                            <label for="templateName" class="form-label fw-semibold text-secondary small">New Template Name</label>
+                            <input type="text" class="form-control form-control-premium" id="templateName" name="template_name" placeholder="e.g. Weekly Newsletter Template">
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-premium flex-grow-1 text-white py-2.5">
+                                <i class="fas fa-save me-1"></i> Save Campaign Content
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Live Preview Panel (Right Column) -->
+            <div class="col-lg-5">
+                <div class="card-glass p-4 h-100 d-flex flex-column">
+                    <h5 class="fw-bold mb-3">Live Recipient Preview</h5>
+                    
+                    <div class="bg-body border border-color rounded p-3 mb-3" style="font-size: 0.85rem;">
+                        <div class="mb-1 text-secondary"><strong class="text-primary-emphasis">From:</strong> <span id="previewFrom">...</span></div>
+                        <div class="mb-1 text-secondary"><strong class="text-primary-emphasis">To:</strong> John Doe &lt;john@example.com&gt;</div>
+                        <div class="mb-0 text-secondary"><strong class="text-primary-emphasis">Subject:</strong> <span id="previewSubject" class="text-dark-emphasis fw-semibold">No Subject</span></div>
+                    </div>
+                    
+                    <!-- Render Container -->
+                    <div class="preview-container flex-grow-1" id="previewPane">
+                        <p class="text-muted opacity-50 text-center my-5">No content composed yet. Start typing to view preview.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        let quill;
+        const subjectInput = document.getElementById('subject');
+        const previewSubject = document.getElementById('previewSubject');
+        const previewPane = document.getElementById('previewPane');
+        const hiddenBodyInput = document.getElementById('body_html');
+        const form = document.getElementById('composerForm');
+        
+        const saveAsTemplateCheckbox = document.getElementById('saveAsTemplate');
+        const templateNameGroup = document.getElementById('templateNameGroup');
+        const templateNameInput = document.getElementById('templateName');
+        const templateSelector = document.getElementById('templateSelector');
+        
+        const targetCampaign = document.getElementById('targetCampaign');
+        const existingAttachmentsContainer = document.getElementById('existingAttachmentsContainer');
+        const existingAttachmentsList = document.getElementById('existingAttachmentsList');
+
+        document.addEventListener('appReady', async () => {
+            // 1. Initialize Quill Editor
+            quill = new Quill('#editor', {
+                theme: 'snow',
+                placeholder: 'Write your email body here...',
+                modules: {
+                    toolbar: [
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'header': [1, 2, 3, false] }],
+                        [{ 'color': [] }, { 'background': [] }],
+                        ['link', 'clean']
+                    ]
+                }
+            });
+
+            subjectInput.addEventListener('input', updatePreview);
+            quill.on('text-change', updatePreview);
+
+            // 2. Load configurations & SMTP settings for From: display, templates list, and campaigns list
+            try {
+                // Fetch SMTP limits & configs
+                const settingsResp = await apiFetch('/api/dashboard');
+                if (settingsResp.ok) {
+                    const data = await settingsResp.json();
+                    document.getElementById('previewFrom').textContent = data.settings.gmail_address || '(Configure SMTP in Settings)';
+                    
+                    // Populate Campaigns list
+                    const draftCampaigns = data.campaigns.filter(c => c.status === 'Draft');
+                    draftCampaigns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = `${c.name} (Draft - ${c.total_contacts} contacts)`;
+                        targetCampaign.appendChild(opt);
+                    });
+                }
+
+                // Fetch Templates list
+                const templatesResp = await apiFetch('/api/templates');
+                if (templatesResp.ok) {
+                    const data = await templatesResp.json();
+                    data.templates.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        templateSelector.appendChild(opt);
+                    });
+                }
+                
+                // Read search parameters for auto-loading
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlTemplateId = urlParams.get('template_id');
+                const urlCampaignId = urlParams.get('campaign_id');
+                
+                if (urlTemplateId) {
+                    templateSelector.value = urlTemplateId;
+                    templateSelector.dispatchEvent(new Event('change'));
+                }
+                if (urlCampaignId) {
+                    targetCampaign.value = urlCampaignId;
+                    targetCampaign.dispatchEvent(new Event('change'));
+                }
+
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Live Preview Syncer
+        function updatePreview() {
+            if (!quill) return;
+            const subject = subjectInput.value;
+            const html = quill.getSemanticHTML();
+            
+            const mockName = "John Doe";
+            const mockEmail = "john@example.com";
+            
+            const compiledSubject = subject.replace(/{name}/g, mockName).replace(/{email}/g, mockEmail);
+            const compiledHtml = html.replace(/{name}/g, mockName).replace(/{email}/g, mockEmail);
+            
+            previewSubject.textContent = compiledSubject || "No Subject";
+            if (quill.getText().trim() === '') {
+                previewPane.innerHTML = `<p class="text-muted opacity-50 text-center my-5">No content composed yet. Start typing to view preview.</p>`;
+            } else {
+                previewPane.innerHTML = compiledHtml;
+            }
+            
+            hiddenBodyInput.value = html;
+        }
+
+        // Variable Inserter
+        function insertVariable(variable) {
+            if (!quill) return;
+            const range = quill.getSelection();
+            if (range) {
+                quill.insertText(range.index, variable);
+                quill.setSelection(range.index + variable.length);
+            } else {
+                quill.insertText(quill.getLength() - 1, variable);
+            }
+            updatePreview();
+        }
+        window.insertVariable = insertVariable;
+
+        // Save as template checkbox handler
+        saveAsTemplateCheckbox.addEventListener('change', () => {
+            if (saveAsTemplateCheckbox.checked) {
+                templateNameGroup.style.display = 'block';
+                templateNameInput.required = true;
+            } else {
+                templateNameGroup.style.display = 'none';
+                templateNameInput.required = false;
+            }
+        });
+
+        // Load template details
+        templateSelector.addEventListener('change', async () => {
+            const templateId = templateSelector.value;
+            if (!templateId) return;
+            
+            try {
+                const response = await apiFetch(`/api/templates/${templateId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    subjectInput.value = data.subject;
+                    quill.clipboard.dangerouslyPasteHTML(data.body_html);
+                    updatePreview();
+                    showToast('Success', `Loaded template '${data.name}'`, 'success');
+                } else {
+                    showToast('Error', 'Failed to fetch template detail.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        // Load campaign details
+        targetCampaign.addEventListener('change', async () => {
+            const campaignId = targetCampaign.value;
+            if (!campaignId) {
+                existingAttachmentsContainer.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await apiFetch(`/api/campaigns/${campaignId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.subject && data.subject !== 'No Subject') {
+                        subjectInput.value = data.subject;
+                    } else {
+                        subjectInput.value = '';
+                    }
+                    
+                    if (data.body_html && data.body_html !== '<p>No content composed yet.</p>') {
+                        quill.clipboard.dangerouslyPasteHTML(data.body_html);
+                    } else {
+                        quill.setText('');
+                    }
+                    
+                    renderExistingAttachments(data.attachments, data.id);
+                    updatePreview();
+                    showToast('Campaign Loaded', `Loaded content for campaign '${data.name}'`, 'info');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        function renderExistingAttachments(attachments, campaignId) {
+            existingAttachmentsList.innerHTML = '';
+            if (attachments && attachments.length > 0) {
+                existingAttachmentsContainer.style.display = 'block';
+                attachments.forEach(filename => {
+                    const badge = document.createElement('div');
+                    badge.className = 'badge bg-secondary d-flex align-items-center gap-2 px-2.5 py-1.5 border border-color';
+                    badge.style.color = 'var(--text-primary)';
+                    badge.style.backgroundColor = 'var(--bg-body)';
+                    badge.innerHTML = `
+                        <i class="fas fa-file-lines text-primary"></i>
+                        <span>${filename}</span>
+                        <button type="button" class="btn-close" style="font-size: 0.55rem;" onclick="deleteAttachment(${campaignId}, '${filename}')" title="Delete Attachment"></button>
+                    `;
+                    existingAttachmentsList.appendChild(badge);
+                });
+            } else {
+                existingAttachmentsContainer.style.display = 'none';
+            }
+        }
+
+        async function deleteAttachment(campaignId, filename) {
+            if (!confirm(`Are you sure you want to delete the attachment "${filename}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await apiFetch(`/api/campaigns/${campaignId}/attachments/${filename}/delete`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('Deleted', 'Attachment removed successfully.', 'success');
+                    renderExistingAttachments(data.attachments, campaignId);
+                } else {
+                    showToast('Error', data.message || 'Failed to delete attachment.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        window.deleteAttachment = deleteAttachment;
+
+        // Submit form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (quill.getText().trim() === '') {
+                showToast('Validation Error', 'Email body cannot be empty.', 'warning');
+                return;
+            }
+            
+            hiddenBodyInput.value = quill.getSemanticHTML();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving Content...';
+
+            const formData = new FormData(form);
+            
+            try {
+                const response = await apiFetch('/api/save-campaign', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showToast('Success', 'Campaign content and attachments saved successfully.', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                } else {
+                    showToast('Error', data.message || 'Failed to save campaign.', 'danger');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Campaign Content';
+                }
+            } catch (err) {
+                console.error(err);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Campaign Content';
+            }
+        });
+    </script>
+</body>
+</html>

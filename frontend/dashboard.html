@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here, loading page-content inside main wrapper -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <!-- Metrics Cards Grid -->
+        <div class="row g-4 mb-4">
+            <!-- Total Contacts -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card-glass metric-card p-4">
+                    <div class="icon-wrapper color-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-title">Total Contacts</div>
+                    <h3 class="metric-value" id="statTotalContacts">0</h3>
+                </div>
+            </div>
+            
+            <!-- Emails Sent -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card-glass metric-card p-4">
+                    <div class="icon-wrapper color-success">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="metric-title">Sent Emails</div>
+                    <h3 class="metric-value" id="statSentEmails">0</h3>
+                </div>
+            </div>
+            
+            <!-- Failed Emails -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card-glass metric-card p-4">
+                    <div class="icon-wrapper color-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="metric-title">Failed Emails</div>
+                    <h3 class="metric-value" id="statFailedEmails">0</h3>
+                </div>
+            </div>
+            
+            <!-- Daily Limit Progress -->
+            <div class="col-md-6 col-lg-3">
+                <div class="card-glass metric-card p-4">
+                    <div class="icon-wrapper color-info">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="metric-title">Today's Sending Limit</div>
+                    <h3 class="metric-value" id="statLimitText">0 / 0</h3>
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-info" id="limitProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1 text-muted" style="font-size: 0.75rem;">
+                        <span id="limitPctText">0% Utilized</span>
+                        <span id="limitRemainingText">0 Remaining</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Campaigns Table (Left Side) -->
+            <div class="col-xl-8">
+                <div class="card-glass h-100">
+                    <div class="card-header-clean">
+                        <h5 class="mb-0 fw-bold">Active Campaigns</h5>
+                        <a href="composer.html" class="btn btn-premium btn-sm">
+                            <i class="fas fa-plus me-1"></i> New Campaign
+                        </a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table-premium">
+                            <thead>
+                                <tr>
+                                    <th>Campaign Name</th>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Progress (Sent/Total)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="campaignsTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-secondary">
+                                        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                                        Loading campaigns...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics and Recent logs (Right Side) -->
+            <div class="col-xl-4 d-flex flex-column gap-4">
+                <!-- Success rate chart -->
+                <div class="card-glass p-4">
+                    <h5 class="fw-bold mb-3">Email Success Rate</h5>
+                    <div style="position: relative; height: 180px;">
+                        <canvas id="successChart"></canvas>
+                    </div>
+                    <div class="d-flex justify-content-around mt-3 text-center" style="font-size: 0.85rem;">
+                        <div>
+                            <span class="d-block fw-bold text-success" id="deliveredCount">0</span>
+                            <span class="text-muted">Delivered</span>
+                        </div>
+                        <div>
+                            <span class="d-block fw-bold text-danger" id="failedCount">0</span>
+                            <span class="text-muted">Failed</span>
+                        </div>
+                        <div>
+                            <span class="d-block fw-bold text-primary" id="successRateVal">100%</span>
+                            <span class="text-muted">Success Rate</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Logs -->
+                <div class="card-glass p-4 flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="fw-bold mb-0">Recent Activity</h5>
+                        <a href="logs.html" class="text-decoration-none small">View all</a>
+                    </div>
+                    
+                    <div class="d-flex flex-column gap-3 overflow-auto" id="recentActivityList" style="max-height: 250px;">
+                        <p class="text-muted text-center py-3 my-0 small">No recent logs recorded.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        let successChart = null;
+
+        document.addEventListener('appReady', () => {
+            loadDashboardData();
+        });
+
+        async function loadDashboardData() {
+            try {
+                const response = await apiFetch('/api/dashboard');
+                if (!response.ok) throw new Error('Failed to load dashboard data');
+                
+                const data = await response.json();
+                
+                // 1. Populate Metrics
+                document.getElementById('statTotalContacts').textContent = data.stats.total_contacts;
+                document.getElementById('statSentEmails').textContent = data.stats.sent_emails;
+                document.getElementById('statFailedEmails').textContent = data.stats.failed_emails;
+                
+                const sentToday = data.settings.sent_today || 0;
+                const dailyLimit = data.settings.daily_limit || 20;
+                document.getElementById('statLimitText').textContent = `${sentToday} / ${dailyLimit}`;
+                
+                const pct = dailyLimit > 0 ? Math.min(Math.round((sentToday / dailyLimit) * 100), 100) : 0;
+                const remaining = Math.max(dailyLimit - sentToday, 0);
+                
+                const bar = document.getElementById('limitProgressBar');
+                bar.style.width = `${pct}%`;
+                bar.setAttribute('aria-valuenow', pct);
+                document.getElementById('limitPctText').textContent = `${pct}% Utilized`;
+                document.getElementById('limitRemainingText').textContent = `${remaining} Remaining`;
+                
+                // 2. Render chart
+                renderChart(data.stats.sent_emails, data.stats.failed_emails);
+                
+                // 3. Render Campaigns Table
+                renderCampaigns(data.campaigns);
+                
+                // 4. Render Recent Logs
+                renderRecentLogs(data.recent_logs);
+                
+            } catch (err) {
+                console.error(err);
+                showToast('Error', 'Failed to load dashboard statistics.', 'danger');
+            }
+        }
+
+        function renderChart(sentCount, failedCount) {
+            const ctx = document.getElementById('successChart').getContext('2d');
+            const totalSent = sentCount + failedCount;
+            const rate = totalSent > 0 ? Math.round((sentCount / totalSent) * 100) : 100;
+            
+            document.getElementById('deliveredCount').textContent = sentCount;
+            document.getElementById('failedCount').textContent = failedCount;
+            document.getElementById('successRateVal').textContent = `${rate}%`;
+            
+            const chartData = (sentCount === 0 && failedCount === 0) ? [1, 0] : [sentCount, failedCount];
+            const chartLabels = (sentCount === 0 && failedCount === 0) ? ['No emails sent', 'Failed'] : ['Sent', 'Failed'];
+            const chartColors = (sentCount === 0 && failedCount === 0) ? ['#e2e8f0', '#ef4444'] : ['#10b981', '#ef4444'];
+            
+            if (successChart) {
+                successChart.destroy();
+            }
+            
+            successChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 2,
+                        borderColor: document.body.classList.contains('dark-theme') ? '#111827' : '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderCampaigns(campaigns) {
+            const tbody = document.getElementById('campaignsTableBody');
+            if (!campaigns || campaigns.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-secondary">
+                            <i class="fas fa-folder-open fa-2x mb-2 d-block opacity-50"></i>
+                            No campaigns found. <a href="composer.html">Create your first campaign</a> to start sending!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = campaigns.map(c => {
+                let statusBadge = '';
+                if (c.status === 'Running') {
+                    statusBadge = '<span class="badge-premium badge-running"><i class="fas fa-sync fa-spin"></i> Running</span>';
+                } else if (c.status === 'Paused') {
+                    statusBadge = '<span class="badge-premium badge-paused"><i class="fas fa-pause"></i> Paused</span>';
+                } else if (c.status === 'Stopped') {
+                    statusBadge = '<span class="badge-premium badge-stopped"><i class="fas fa-stop"></i> Stopped</span>';
+                } else if (c.status === 'Completed') {
+                    statusBadge = '<span class="badge-premium badge-completed"><i class="fas fa-check"></i> Completed</span>';
+                } else {
+                    statusBadge = '<span class="badge-premium badge-draft"><i class="fas fa-file-alt"></i> Draft</span>';
+                }
+                
+                const total = c.total_contacts || 0;
+                const sent = c.sent_contacts || 0;
+                const failed = c.failed_contacts || 0;
+                const progPct = total > 0 ? Math.round((sent / total) * 100) : 0;
+                
+                // Buttons actions rendering
+                let actionButtons = '';
+                if (c.status === 'Running') {
+                    actionButtons += `
+                        <button onclick="changeCampaign('${c.id}', 'Paused')" class="btn btn-sm btn-outline-warning" title="Pause Automation">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button onclick="changeCampaign('${c.id}', 'Stopped')" class="btn btn-sm btn-outline-danger" title="Stop Automation">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    `;
+                } else if (c.status === 'Draft' || c.status === 'Paused' || c.status === 'Stopped') {
+                    const disabledStr = total === 0 ? 'disabled' : '';
+                    actionButtons += `
+                        <button onclick="changeCampaign('${c.id}', 'Running')" class="btn btn-sm btn-outline-success" title="Start/Resume Automation" ${disabledStr}>
+                            <i class="fas fa-play"></i>
+                        </button>
+                    `;
+                }
+                
+                if (failed > 0 && c.status !== 'Running') {
+                    actionButtons += `
+                        <button onclick="retryCampaign('${c.id}')" class="btn btn-sm btn-outline-primary" title="Retry Failed Emails">
+                            <i class="fas fa-rotate"></i>
+                        </button>
+                    `;
+                }
+                
+                if (['Completed', 'Stopped', 'Paused'].includes(c.status)) {
+                    actionButtons += `
+                        <button onclick="resetCampaign('${c.id}')" class="btn btn-sm btn-outline-secondary" title="Reset Campaign (Re-run all)">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    `;
+                }
+                
+                actionButtons += `
+                    <button onclick="deleteCampaign('${c.id}')" class="btn btn-sm btn-outline-danger" title="Delete Campaign">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                
+                const failedText = failed > 0 ? ` <span class="text-danger">(${failed} failed)</span>` : '';
+                
+                return `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${c.name}</div>
+                            <small class="text-muted">Created ${c.created_at}</small>
+                        </td>
+                        <td><span class="text-truncate d-inline-block" style="max-width: 180px;" title="${c.subject}">${c.subject}</span></td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="flex-grow-1">
+                                    <div class="progress" style="height: 6px; min-width: 80px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: ${progPct}%" aria-valuenow="${progPct}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                <small class="fw-medium text-secondary" style="font-size: 0.8rem;">
+                                    ${sent}/${total}${failedText}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-1">
+                                ${actionButtons}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderRecentLogs(logs) {
+            const list = document.getElementById('recentActivityList');
+            if (!logs || logs.length === 0) {
+                list.innerHTML = '<p class="text-muted text-center py-3 my-0 small">No recent logs recorded.</p>';
+                return;
+            }
+            
+            list.innerHTML = logs.map(l => {
+                const icon = l.status === 'Sent' ? 
+                    '<i class="fas fa-check-circle text-success"></i>' : 
+                    '<i class="fas fa-times-circle text-danger"></i>';
+                const desc = l.status === 'Sent' ? 'Sent successfully' : (l.error_message || 'Failed');
+                
+                return `
+                    <div class="d-flex align-items-start gap-2 pb-2 border-bottom border-color last-border-none">
+                        <div class="mt-1" style="font-size: 0.85rem;">
+                            ${icon}
+                        </div>
+                        <div class="flex-grow-1 text-truncate" style="font-size: 0.85rem;">
+                            <div class="fw-semibold text-truncate">${l.contact_email}</div>
+                            <div class="text-muted text-truncate" style="font-size: 0.75rem;" title="${desc}">
+                                ${desc}
+                            </div>
+                        </div>
+                        <small class="text-muted text-nowrap" style="font-size: 0.7rem;">${l.timestamp}</small>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function changeCampaign(campaignId, status) {
+            const result = await setCampaignStatus(campaignId, status);
+            if (result) {
+                loadDashboardData();
+            }
+        }
+
+        async function retryCampaign(campaignId) {
+            try {
+                const response = await apiFetch(`/api/campaigns/${campaignId}/retry`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('Success', 'Failed emails marked for retry.', 'success');
+                    loadDashboardData();
+                } else {
+                    showToast('Error', data.message || 'Failed to retry contacts.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function resetCampaign(campaignId) {
+            if (!confirm('Are you sure you want to reset this campaign? This resets all contact statuses to Pending so you can run the campaign again.')) {
+                return;
+            }
+            try {
+                const response = await apiFetch(`/api/campaigns/${campaignId}/reset`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('Success', 'Campaign contacts reset successfully.', 'success');
+                    loadDashboardData();
+                } else {
+                    showToast('Error', data.message || 'Failed to reset campaign.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteCampaign(campaignId) {
+            if (!confirm('Are you sure you want to delete this campaign? This deletes all associated contacts and records.')) {
+                return;
+            }
+            try {
+                const response = await apiFetch(`/api/campaigns/${campaignId}/delete`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('Success', 'Campaign deleted successfully.', 'success');
+                    loadDashboardData();
+                } else {
+                    showToast('Error', data.message || 'Failed to delete campaign.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+    <style>
+        .last-border-none:last-child {
+            border-bottom: none !important;
+            padding-bottom: 0 !important;
+        }
+    </style>
+</body>
+</html>

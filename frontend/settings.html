@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+                <div class="card-glass p-4">
+                    <h5 class="fw-bold mb-4">SMTP & Queue Configuration</h5>
+                    
+                    <form id="settingsForm">
+                        <!-- SMTP Credentials Segment -->
+                        <div class="row g-3 mb-4 pb-3 border-bottom border-color">
+                            <h6 class="fw-bold text-primary mb-1"><i class="fas fa-envelope-open-text me-1"></i> SMTP Server credentials (Gmail)</h6>
+                            
+                            <div class="col-md-6">
+                                <label for="gmailAddress" class="form-label fw-semibold text-secondary small">Gmail Address</label>
+                                <input type="email" class="form-control form-control-premium" id="gmailAddress" name="gmail_address" placeholder="your.email@gmail.com" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="gmailAppPassword" class="form-label fw-semibold text-secondary small">Gmail App Password</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control form-control-premium border-end-0" id="gmailAppPassword" name="gmail_app_password" placeholder="16-character app password" required>
+                                    <button class="btn btn-outline-secondary border-start-0 border-color bg-body" type="button" id="togglePassword">
+                                        <i class="fas fa-eye text-muted"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text text-secondary mt-1" style="font-size: 0.75rem;">
+                                    Gmail requires a 16-character App Password (not your main account password). Enable 2FA in Google Security settings to generate one.
+                                </div>
+                            </div>
+                            
+                            <!-- SMTP Test Connection Trigger -->
+                            <div class="col-12 mt-2">
+                                <button type="button" id="testConnBtn" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-plug-circle-bolt me-1"></i> Verify Credentials / Test Connection
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Campaign Queue Constraints Segment -->
+                        <div class="row g-3 mb-4 pb-3 border-bottom border-color">
+                            <h6 class="fw-bold text-primary mb-1"><i class="fas fa-sliders me-1"></i> Campaign Constraints & Rates</h6>
+                            
+                            <div class="col-md-4">
+                                <label for="dailyLimit" class="form-label fw-semibold text-secondary small">Daily Sending Limit</label>
+                                <input type="number" class="form-control form-control-premium" id="dailyLimit" name="daily_limit" min="1" max="500" required>
+                                <div class="form-text text-secondary" style="font-size: 0.75rem;">Default limit: 20 per day.</div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="delaySeconds" class="form-label fw-semibold text-secondary small">Delay Between Emails (seconds)</label>
+                                <input type="number" class="form-control form-control-premium" id="delaySeconds" name="delay_seconds" min="0" max="60" required>
+                                <div class="form-text text-secondary" style="font-size: 0.75rem;">Cooldown interval to prevent rate-limiting flags.</div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="scheduleTime" class="form-label fw-semibold text-secondary small">Scheduled Send Time (Daily)</label>
+                                <input type="time" class="form-control form-control-premium" id="scheduleTime" name="schedule_time" required>
+                                <div class="form-text text-secondary" style="font-size: 0.75rem;">Campaign deliveries will commence at or after this time.</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit" id="saveBtn" class="btn btn-premium px-4 py-2.5 text-white">
+                                <i class="fas fa-save me-1"></i> Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        const gmailAddressInput = document.getElementById('gmailAddress');
+        const gmailAppPassword = document.getElementById('gmailAppPassword');
+        const togglePassword = document.getElementById('togglePassword');
+        const toggleIcon = togglePassword.querySelector('i');
+        const testConnBtn = document.getElementById('testConnBtn');
+        const form = document.getElementById('settingsForm');
+        const saveBtn = document.getElementById('saveBtn');
+
+        document.addEventListener('appReady', async () => {
+            // Load Settings
+            try {
+                const response = await apiFetch('/api/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    gmailAddressInput.value = data.gmail_address || '';
+                    gmailAppPassword.value = data.gmail_app_password || '';
+                    document.getElementById('dailyLimit').value = data.daily_limit || 20;
+                    document.getElementById('delaySeconds').value = data.delay_seconds || 2;
+                    document.getElementById('scheduleTime').value = data.schedule_time || '09:00';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Visibility toggle
+        togglePassword.addEventListener('click', () => {
+            const type = gmailAppPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+            gmailAppPassword.setAttribute('type', type);
+            toggleIcon.className = type === 'password' ? 'fas fa-eye text-muted' : 'fas fa-eye-slash text-muted';
+        });
+
+        // Test credentials
+        testConnBtn.addEventListener('click', async () => {
+            const email = gmailAddressInput.value.trim();
+            const pass = gmailAppPassword.value;
+            
+            if (!email || !pass) {
+                showToast('Validation Warning', 'Please provide both email address and app password to test connection.', 'warning');
+                return;
+            }
+
+            testConnBtn.disabled = true;
+            testConnBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Testing connection...`;
+            
+            try {
+                const response = await apiFetch('/api/settings/test-smtp', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password: pass })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showToast('SMTP Test Success', data.message || 'SMTP Connection verified successfully!', 'success');
+                } else {
+                    showToast('SMTP Test Failed', data.message || 'Connection failure.', 'danger');
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                testConnBtn.disabled = false;
+                testConnBtn.innerHTML = `<i class="fas fa-plug-circle-bolt me-1"></i> Verify Credentials / Test Connection`;
+            }
+        });
+
+        // Save Settings Form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+            
+            const payload = {
+                gmail_address: gmailAddressInput.value.trim(),
+                gmail_app_password: gmailAppPassword.value,
+                daily_limit: parseInt(document.getElementById('dailyLimit').value, 10),
+                delay_seconds: parseInt(document.getElementById('delaySeconds').value, 10),
+                schedule_time: document.getElementById('scheduleTime').value
+            };
+            
+            try {
+                const response = await apiFetch('/api/settings', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showToast('Success', 'SMTP configuration saved successfully.', 'success');
+                } else {
+                    showToast('Error', data.message || 'Failed to save configuration.', 'danger');
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Configuration';
+            }
+        });
+    </script>
+</body>
+</html>

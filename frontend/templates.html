@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Library | MAIL SARTHI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <div class="toast-container-custom"></div>
+
+    <div id="app-container">
+        <!-- layout.js will inject the sidebar and top navbar here -->
+    </div>
+
+    <!-- Raw content container hidden by default -->
+    <div id="page-content" style="display: none;">
+        <div class="card-glass p-4 mb-4">
+            <!-- Header with Search -->
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <h5 class="fw-bold mb-0">Saved Email Templates</h5>
+                <div class="d-flex gap-2 align-items-center" style="max-width: 400px; width: 100%;">
+                    <div class="input-group flex-grow-1">
+                        <span class="input-group-text bg-transparent border-end-0 border-color text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchTemplates" class="form-control form-control-premium border-start-0 ps-0" placeholder="Search templates...">
+                    </div>
+                    <a href="composer.html" class="btn btn-premium text-nowrap text-white">
+                        <i class="fas fa-plus me-1"></i> Compose New
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Templates Grid -->
+        <div class="row g-4" id="templatesGrid">
+            <!-- Loaded dynamically -->
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2 text-secondary">Loading template library...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/main.js"></script>
+    <script src="static/js/layout.js"></script>
+    
+    <script>
+        let allTemplates = [];
+
+        document.addEventListener('appReady', () => {
+            loadTemplates();
+        });
+
+        async function loadTemplates() {
+            try {
+                const response = await apiFetch('/api/templates');
+                if (!response.ok) throw new Error('Failed to fetch templates');
+                
+                const data = await response.json();
+                allTemplates = data.templates || [];
+                renderTemplates(allTemplates);
+            } catch (err) {
+                console.error(err);
+                showToast('Error', 'Failed to retrieve template library.', 'danger');
+            }
+        }
+
+        function renderTemplates(templates) {
+            const grid = document.getElementById('templatesGrid');
+            
+            if (templates.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-12" id="noTemplatesState">
+                        <div class="card-glass p-5 text-center text-secondary">
+                            <i class="fas fa-folder-open fa-3x mb-3 opacity-30"></i>
+                            <h5 class="fw-bold">No Templates Found</h5>
+                            <p class="small mb-3">You haven't saved any templates yet. You can check the "Save this configuration to my Template Library" option in the Email Composer to save one.</p>
+                            <a href="composer.html" class="btn btn-premium text-white">Go to Composer</a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = templates.map(t => {
+                // Strip HTML tags for clean body preview
+                const cleanBody = t.body_preview ? t.body_preview.replace(/<[^>]*>/g, '') : '';
+                
+                return `
+                    <div class="col-md-6 col-xl-4 template-card-item" data-name="${t.name.toLowerCase()}">
+                        <div class="card-glass h-100 d-flex flex-column p-4">
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded bg-primary-light text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                        <i class="fas fa-file-invoice fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-truncate" style="max-width: 180px;" title="${t.name}">${t.name}</h6>
+                                        <small class="text-muted" style="font-size: 0.75rem;">Saved ${t.created_at}</small>
+                                    </div>
+                                </div>
+                                
+                                <button type="button" onclick="deleteTemplate(${t.id}, '${t.name}')" class="btn btn-sm btn-link text-danger p-0" title="Delete Template">
+                                    <i class="fas fa-trash-can fa-lg"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="mb-3 flex-grow-1">
+                                <div class="text-secondary small fw-semibold mb-1">Subject:</div>
+                                <div class="text-dark-emphasis small text-truncate fw-medium" title="${t.subject}">${t.subject}</div>
+                                
+                                <div class="text-secondary small fw-semibold mt-2 mb-1">Body Preview:</div>
+                                <div class="bg-body border border-color rounded p-2 text-muted small text-truncate" style="max-height: 48px; font-family: monospace;">
+                                    ${cleanBody}
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto pt-2 border-top border-color">
+                                <a href="composer.html?template_id=${t.id}" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="fas fa-file-import me-1"></i> Extract & Use Template
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Empty state helper row
+            const searchEmpty = document.createElement('div');
+            searchEmpty.id = 'searchEmptyState';
+            searchEmpty.className = 'col-12 d-none';
+            searchEmpty.innerHTML = `
+                <div class="card-glass p-5 text-center text-secondary">
+                    <i class="fas fa-magnifying-glass fa-3x mb-3 opacity-30"></i>
+                    <h5 class="fw-bold">No Match Found</h5>
+                    <p class="small mb-0">Try searching with a different name.</p>
+                </div>
+            `;
+            grid.appendChild(searchEmpty);
+        }
+
+        // Live interactive template searching
+        const searchInput = document.getElementById('searchTemplates');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                const cards = document.querySelectorAll('.template-card-item');
+                const searchEmptyState = document.getElementById('searchEmptyState');
+                
+                let visibleCount = 0;
+                cards.forEach(card => {
+                    const name = card.getAttribute('data-name');
+                    if (name.includes(query)) {
+                        card.classList.remove('d-none');
+                        visibleCount++;
+                    } else {
+                        card.classList.add('d-none');
+                    }
+                });
+
+                if (visibleCount === 0 && cards.length > 0) {
+                    searchEmptyState.classList.remove('d-none');
+                } else {
+                    searchEmptyState.classList.add('d-none');
+                }
+            });
+        }
+
+        async function deleteTemplate(templateId, name) {
+            if (!confirm(`Are you sure you want to delete the template "${name}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await apiFetch(`/api/templates/${templateId}/delete`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showToast('Success', `Template '${name}' deleted successfully.`, 'success');
+                    loadTemplates();
+                } else {
+                    showToast('Error', data.message || 'Failed to delete template.', 'danger');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>
