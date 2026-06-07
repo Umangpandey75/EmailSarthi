@@ -12,8 +12,11 @@ from database import db, User, Settings, Campaign, Contact, EmailTemplate, Email
 from mailer import test_smtp_connection, log_to_file, send_campaign_email
 from scheduler import start_scheduler, stop_scheduler
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
 app.config.from_object(Config)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Enable CORS for Frontend (Allow Credentials for session cookies)
 allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')

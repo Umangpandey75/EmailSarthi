@@ -10,6 +10,9 @@ class Config:
     DEBUG = True
     SECRET_KEY = os.environ.get('SECRET_KEY')
     
+    # CSRF Trusted Origins (needed for HTTPS proxying)
+    WTF_CSRF_TRUSTED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+    
     # SMTP Server Settings (defaults to Gmail)
     SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
