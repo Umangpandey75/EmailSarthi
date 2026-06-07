@@ -13,7 +13,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "http://localhost:8000,http://127.0.0.1:8000"
+        value: "http://localhost:8000,http://127.0.0.1:8000,https://emailsarthi.vercel.app"
 
 databases:
   - name: mail-sarthi-db
