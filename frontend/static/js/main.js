@@ -1,4 +1,6 @@
-const BACKEND_URL = 'http://127.0.0.1:5000';
+const BACKEND_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+    ? 'http://127.0.0.1:5000'
+    : '';
 
 // Global variables
 window.csrfToken = '';

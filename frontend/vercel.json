@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://your-flask-backend.onrender.com/api/:path*"
+    }
+  ]
+}
