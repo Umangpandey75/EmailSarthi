@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: mail-sarthi-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mail-sarthi-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "http://localhost:8000,http://127.0.0.1:8000"
+
+databases:
+  - name: mail-sarthi-db
+    plan: free

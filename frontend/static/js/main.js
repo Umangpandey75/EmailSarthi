@@ -1,5 +1,5 @@
 const BACKEND_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
-    ? 'http://127.0.0.1:5000'
+    ? 'http://127.0.0.1:5000,https://emailsarthi.onrender.com/'
     : '';
 
 // Global variables
@@ -10,7 +10,7 @@ window.currentUser = null;
 (function initTheme() {
     const savedTheme = localStorage.getItem('theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
+
     if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
         document.body.classList.add('dark-theme');
     } else {
@@ -21,7 +21,7 @@ window.currentUser = null;
 document.addEventListener('DOMContentLoaded', () => {
     // Theme toggle button listener (will be bound after layout injection or on login page)
     bindThemeToggle();
-    
+
     // Auto-run authorization flow
     checkAuthAndInit();
 });
@@ -34,11 +34,11 @@ function bindThemeToggle() {
         if (themeIcon) {
             themeIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
         }
-        
+
         // Remove existing listeners by cloning
         const newBtn = themeToggleBtn.cloneNode(true);
         themeToggleBtn.parentNode.replaceChild(newBtn, themeToggleBtn);
-        
+
         newBtn.addEventListener('click', () => {
             document.body.classList.toggle('dark-theme');
             const nowDark = document.body.classList.contains('dark-theme');
@@ -55,7 +55,7 @@ function bindThemeToggle() {
 async function checkAuthAndInit() {
     const currentPath = window.location.pathname;
     const isGuestPage = currentPath.endsWith('login.html') || currentPath.endsWith('register.html');
-    
+
     try {
         // Fetch CSRF Token first
         const csrfResp = await fetch(`${BACKEND_URL}/api/csrf-token`, { credentials: 'include' });
@@ -63,34 +63,34 @@ async function checkAuthAndInit() {
             const csrfData = await csrfResp.json();
             window.csrfToken = csrfData.csrf_token;
         }
-        
+
         // Fetch Auth Status
         const authResp = await fetch(`${BACKEND_URL}/api/auth/status`, { credentials: 'include' });
         const authData = await authResp.json();
-        
+
         if (authData.authenticated) {
             window.currentUser = {
                 username: authData.username,
                 email: authData.email
             };
-            
+
             if (isGuestPage) {
                 // Logged in user shouldn't be on guest pages
                 window.location.href = 'dashboard.html';
                 return;
             }
-            
+
             // Inject layout if it exists and show content
             if (window.initLayout) {
                 window.initLayout();
             }
-            
+
             // Show page content
             const pageContent = document.getElementById('page-content');
             if (pageContent) {
                 pageContent.style.display = 'block';
             }
-            
+
             // Dispatch custom event that auth and layout are ready
             document.dispatchEvent(new CustomEvent('appReady'));
         } else {
@@ -118,10 +118,10 @@ async function checkAuthAndInit() {
 async function apiFetch(endpoint, options = {}) {
     // Append credentials for session cookies
     options.credentials = 'include';
-    
+
     // Setup Headers
     options.headers = options.headers || {};
-    
+
     // Add CSRF Token header for state-changing operations
     const method = (options.method || 'GET').toUpperCase();
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
@@ -133,9 +133,9 @@ async function apiFetch(endpoint, options = {}) {
             options.headers['Content-Type'] = 'application/json';
         }
     }
-    
+
     const url = endpoint.startsWith('http') ? endpoint : `${BACKEND_URL}${endpoint}`;
-    
+
     try {
         const response = await fetch(url, options);
         if (response.status === 401) {
@@ -161,7 +161,7 @@ function showToast(title, message, type = 'info') {
         container.className = 'toast-container-custom';
         document.body.appendChild(container);
     }
-    
+
     // Determine icon and color
     let iconClass = 'fas fa-info-circle text-info';
     if (type === 'success') {
@@ -171,7 +171,7 @@ function showToast(title, message, type = 'info') {
     } else if (type === 'warning') {
         iconClass = 'fas fa-exclamation-triangle text-warning';
     }
-    
+
     const toast = document.createElement('div');
     toast.className = 'toast-custom';
     toast.innerHTML = `
@@ -184,16 +184,16 @@ function showToast(title, message, type = 'info') {
         </div>
         <button class="toast-close"><i class="fas fa-times"></i></button>
     `;
-    
+
     container.appendChild(toast);
-    
+
     // Add close action
     const closeBtn = toast.querySelector('.toast-close');
     closeBtn.addEventListener('click', () => {
         toast.classList.add('fade-out');
         setTimeout(() => toast.remove(), 300);
     });
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
         if (toast.parentNode) {
@@ -206,47 +206,47 @@ function showToast(title, message, type = 'info') {
 // 5. CSV File Parsing, Deduplication & Previews
 function parseCSVFile(file, onProgress, onComplete, onError) {
     const reader = new FileReader();
-    
-    reader.onload = function(e) {
+
+    reader.onload = function (e) {
         const text = e.target.result;
         const lines = text.split(/\r\n|\n/);
         if (lines.length === 0 || lines[0].trim() === '') {
             onError("CSV file is empty.");
             return;
         }
-        
+
         // Parse headers
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
         const emailIndex = headers.indexOf('email');
         const nameIndex = headers.indexOf('name');
-        
+
         if (emailIndex === -1) {
             onError("Required 'email' column not found in headers. Header row must contain 'email'.");
             return;
         }
-        
+
         const contacts = [];
         const duplicates = [];
         const invalid = [];
         const seenEmails = new Set();
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
+
         // Process rows
         for (let i = 1; i < lines.length; i++) {
             const rowText = lines[i].trim();
             if (rowText === '') continue; // Skip empty lines
-            
+
             // Simple split by comma
             const cols = rowText.split(',').map(c => c.trim());
             const email = cols[emailIndex];
             const name = nameIndex !== -1 && cols[nameIndex] ? cols[nameIndex] : '';
-            
+
             if (!email) continue;
-            
+
             // Validate email format
             const isValidEmail = emailRegex.test(email);
-            
+
             if (!isValidEmail) {
                 invalid.push({ email, name, rowNum: i + 1, error: 'Invalid format' });
             } else if (seenEmails.has(email)) {
@@ -255,12 +255,12 @@ function parseCSVFile(file, onProgress, onComplete, onError) {
                 seenEmails.add(email);
                 contacts.push({ email, name });
             }
-            
+
             if (onProgress && i % 10 === 0) {
                 onProgress(Math.round((i / lines.length) * 100));
             }
         }
-        
+
         onComplete({
             contacts,
             duplicates,
@@ -268,11 +268,11 @@ function parseCSVFile(file, onProgress, onComplete, onError) {
             totalRows: lines.length - 1
         });
     };
-    
-    reader.onerror = function() {
+
+    reader.onerror = function () {
         onError("Failed to read the file.");
     };
-    
+
     reader.readAsText(file);
 }
 
@@ -283,7 +283,7 @@ async function setCampaignStatus(campaignId, status) {
             method: 'POST',
             body: JSON.stringify({ status })
         });
-        
+
         const data = await response.json();
         if (response.ok) {
             showToast('Success', `Campaign is now ${status}.`, 'success');

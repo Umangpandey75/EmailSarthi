@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://your-flask-backend.onrender.com/api/:path*"
+      "destination": "https://emailsarthi.onrender.com/api/:path*"
     }
   ]
 }
