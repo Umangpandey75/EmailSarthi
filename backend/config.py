@@ -16,8 +16,25 @@ class Config:
     
     # Database
     db_url = os.environ.get('DATABASE_URL')
-    if db_url and db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        
+        # Safely quote password special characters (e.g. %, &) to prevent SQLAlchemy parsing errors
+        from urllib.parse import urlparse, urlunparse, quote_plus
+        try:
+            parsed = urlparse(db_url)
+            if parsed.password:
+                password_quoted = quote_plus(parsed.password)
+                user_part = parsed.username or ''
+                host_part = parsed.hostname or ''
+                port_part = f":{parsed.port}" if parsed.port else ''
+                netloc = f"{user_part}:{password_quoted}@{host_part}{port_part}"
+                parsed = parsed._replace(netloc=netloc)
+                db_url = urlunparse(parsed)
+        except Exception as e:
+            print(f"Warning: Could not format database URL: {e}")
+
     SQLALCHEMY_DATABASE_URI = db_url or f"sqlite:///{os.path.join(BASE_DIR, 'database', 'database.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
