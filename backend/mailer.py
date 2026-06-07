@@ -54,8 +54,8 @@ def test_smtp_connection(email_address, app_password):
         return False, "SMTP settings are incomplete."
     
     try:
-        # Connect to Gmail SMTP
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        # Connect to SMTP server
+        server = smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10)
         server.starttls()
         server.login(email_address, app_password)
         server.quit()
@@ -84,7 +84,7 @@ def send_campaign_email(settings, recipient_email, recipient_name, subject, body
     
     try:
         # Establish TLS SMTP connection
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=15)
+        server = smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=15)
         server.starttls()
         server.login(settings.gmail_address, settings.gmail_app_password)
         

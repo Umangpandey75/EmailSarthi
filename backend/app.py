@@ -15,8 +15,9 @@ from scheduler import start_scheduler, stop_scheduler
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Enable CORS for Frontend on Port 8000 (Allow Credentials for session cookies)
-CORS(app, supports_credentials=True, origins=["http://localhost:8000", "http://127.0.0.1:8000"])
+# Enable CORS for Frontend (Allow Credentials for session cookies)
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+CORS(app, supports_credentials=True, origins=allowed_origins)
 
 # Enable CSRF Protection
 csrf = CSRFProtect(app)

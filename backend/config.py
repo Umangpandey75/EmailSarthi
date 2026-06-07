@@ -8,7 +8,11 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     DEBUG = True
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_for_email_automation_system_1298371982')
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    
+    # SMTP Server Settings (defaults to Gmail)
+    SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
     
     # Database
     db_url = os.environ.get('DATABASE_URL')
