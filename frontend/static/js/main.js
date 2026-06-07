@@ -53,8 +53,16 @@ function bindThemeToggle() {
 
 // 2. Auth Flow Check
 async function checkAuthAndInit() {
-    const currentPath = window.location.pathname;
-    const isGuestPage = currentPath.endsWith('login.html') || currentPath.endsWith('register.html');
+    const currentPath = window.location.pathname.toLowerCase();
+    const isGuestPage = currentPath.endsWith('login') || 
+                        currentPath.endsWith('login.html') || 
+                        currentPath.endsWith('register') || 
+                        currentPath.endsWith('register.html');
+                        
+    const isIndexPage = currentPath === '/' || 
+                        currentPath === '' || 
+                        currentPath.endsWith('index') || 
+                        currentPath.endsWith('index.html');
 
     try {
         // Fetch CSRF Token first
@@ -94,17 +102,14 @@ async function checkAuthAndInit() {
             // Dispatch custom event that auth and layout are ready
             document.dispatchEvent(new CustomEvent('appReady'));
         } else {
-            if (!isGuestPage && !currentPath.endsWith('index.html') && currentPath !== '/' && currentPath !== '') {
-                // Not logged in user trying to access app pages
-                window.location.href = 'login.html';
-            } else if (isGuestPage) {
+            if (isGuestPage) {
                 // Guest is fine on guest pages
                 const pageContent = document.getElementById('page-content');
                 if (pageContent) {
                     pageContent.style.display = 'block';
                 }
             } else {
-                // If it is index.html, redirect to login
+                // Not logged in trying to access app pages (like dashboard.html) or home page (index)
                 window.location.href = 'login.html';
             }
         }
