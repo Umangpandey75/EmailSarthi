@@ -8,7 +8,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     DEBUG = True
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'mail_sarthi_default_fallback_secret_key_9876543210'
     
     # CSRF Trusted Origins (needed for HTTPS proxying)
     WTF_CSRF_TRUSTED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
