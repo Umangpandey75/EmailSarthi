@@ -64,7 +64,8 @@ for directory in [
 import socket
 original_getaddrinfo = socket.getaddrinfo
 def custom_getaddrinfo(host, port, family=0, *args, **kwargs):
-    if host == 'smtp.gmail.com' or host == Config.SMTP_HOST:
+    # Bypass Render's broken IPv6 egress by forcing IPv4 for Gmail SMTP and Supabase DB
+    if host == 'smtp.gmail.com' or host == Config.SMTP_HOST or (host and 'supabase.co' in host):
         return original_getaddrinfo(host, port, socket.AF_INET, *args, **kwargs)
     return original_getaddrinfo(host, port, family, *args, **kwargs)
 socket.getaddrinfo = custom_getaddrinfo
