@@ -23,18 +23,42 @@ class Config:
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
         
-        # Safely quote password special characters (e.g. %, &) to prevent SQLAlchemy parsing errors
+        # Safely quote password special characters (e.g. %, &) and force resolve database hostname to IPv4
+        # (This bypasses psycopg2's C-level DNS lookups, avoiding Render's broken IPv6 outbound egress)
         from urllib.parse import urlparse, urlunparse, quote_plus
+        import socket
         try:
             parsed = urlparse(db_url)
-            if parsed.password:
-                password_quoted = quote_plus(parsed.password)
-                user_part = parsed.username or ''
-                host_part = parsed.hostname or ''
-                port_part = f":{parsed.port}" if parsed.port else ''
-                netloc = f"{user_part}:{password_quoted}@{host_part}{port_part}"
-                parsed = parsed._replace(netloc=netloc)
-                db_url = urlunparse(parsed)
+            if parsed.hostname:
+                try:
+                    resolved_ip = socket.gethostbyname(parsed.hostname)
+                    print(f"Database DNS Patch: Resolved '{parsed.hostname}' -> '{resolved_ip}' (IPv4)")
+                    password_part = f":{quote_plus(parsed.password)}" if parsed.password else ''
+                    user_part = f"{parsed.username}" if parsed.username else ''
+                    user_and_pass = f"{user_part}{password_part}@" if user_part else ''
+                    port_part = f":{parsed.port}" if parsed.port else ''
+                    netloc = f"{user_and_pass}{resolved_ip}{port_part}"
+                    parsed = parsed._replace(netloc=netloc)
+                    db_url = urlunparse(parsed)
+                except Exception as dns_err:
+                    print(f"Database DNS Patch Warning: DNS resolution failed for database host {parsed.hostname}: {dns_err}")
+                    # Fallback: Quote password only
+                    password_quoted = quote_plus(parsed.password) if parsed.password else ''
+                    user_part = parsed.username or ''
+                    host_part = parsed.hostname or ''
+                    port_part = f":{parsed.port}" if parsed.port else ''
+                    netloc = f"{user_part}:{password_quoted}@{host_part}{port_part}"
+                    parsed = parsed._replace(netloc=netloc)
+                    db_url = urlunparse(parsed)
+            else:
+                if parsed.password:
+                    password_quoted = quote_plus(parsed.password)
+                    user_part = parsed.username or ''
+                    host_part = parsed.hostname or ''
+                    port_part = f":{parsed.port}" if parsed.port else ''
+                    netloc = f"{user_part}:{password_quoted}@{host_part}{port_part}"
+                    parsed = parsed._replace(netloc=netloc)
+                    db_url = urlunparse(parsed)
         except Exception as e:
             print(f"Warning: Could not format database URL: {e}")
 
