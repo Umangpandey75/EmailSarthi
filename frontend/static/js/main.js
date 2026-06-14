@@ -1,6 +1,7 @@
 const BACKEND_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
-    ? 'http://127.0.0.1:5000'
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
     : '';
+
 
 // Global variables
 window.csrfToken = '';
@@ -57,7 +58,9 @@ async function checkAuthAndInit() {
     const isGuestPage = currentPath.endsWith('login') || 
                         currentPath.endsWith('login.html') || 
                         currentPath.endsWith('register') || 
-                        currentPath.endsWith('register.html');
+                        currentPath.endsWith('register.html') ||
+                        currentPath.endsWith('forgot-password') ||
+                        currentPath.endsWith('forgot-password.html');
                         
     const isIndexPage = currentPath === '/' || 
                         currentPath === '' || 
@@ -82,8 +85,8 @@ async function checkAuthAndInit() {
                 email: authData.email
             };
 
-            if (isGuestPage) {
-                // Logged in user shouldn't be on guest pages
+            if (isGuestPage || isIndexPage) {
+                // Logged in user shouldn't be on guest or index pages
                 window.location.href = 'dashboard.html';
                 return;
             }

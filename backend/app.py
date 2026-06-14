@@ -14,16 +14,29 @@ from scheduler import start_scheduler, stop_scheduler
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
 app.config.from_object(Config)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+@app.route('/')
+def serve_index():
+    return app.send_static_file('index.html')
+
 
 # Enable CORS for Frontend (Allow Credentials for session cookies)
 allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
 CORS(app, supports_credentials=True, origins=allowed_origins)
 
 # Enable CSRF Protection
+from flask_wtf.csrf import CSRFError
 csrf = CSRFProtect(app)
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    error_msg = f"CSRF validation failed: {e.description}"
+    print(error_msg)
+    return jsonify({'message': error_msg}), 400
+
 
 # Disable CSRF check on specific routes if needed, but we can provide /api/csrf-token and require X-CSRFToken headers.
 # Exempt the login/register/status endpoints if we want, or keep it strict and fetch CSRF token first.
@@ -58,12 +71,31 @@ with app.app_context():
             db.session.execute(db.text("ALTER TABLE campaigns ADD COLUMN attachments TEXT"))
             db.session.commit()
             print("Database migration: Added 'attachments' column to 'campaigns' table.")
+        
+        # Check if reset columns exist in 'users' table
+        user_columns = [c['name'] for c in inspector.get_columns('users')]
+        if 'reset_token' not in user_columns:
+            db.session.execute(db.text("ALTER TABLE users ADD COLUMN reset_token VARCHAR(256)"))
+            db.session.commit()
+            print("Database migration: Added 'reset_token' column to 'users' table.")
+        if 'reset_token_expiry' not in user_columns:
+            db.session.execute(db.text("ALTER TABLE users ADD COLUMN reset_token_expiry TIMESTAMP"))
+            db.session.commit()
+            print("Database migration: Added 'reset_token_expiry' column to 'users' table.")
     except Exception as e:
         print(f"Migration warning: {e}")
 
 # Start background scheduler
 start_scheduler(app)
 
+
+@app.before_request
+def log_request_info():
+    if not request.path.startswith('/static/'):
+        print(f"--- INCOMING REQUEST: {request.method} {request.path} ---", flush=True)
+        print(f"Cookies: {request.cookies}", flush=True)
+        print(f"Headers: {dict(request.headers)}", flush=True)
+        print("---------------------------------------", flush=True)
 
 # --- GENERAL & CSRF ENDPOINTS ---
 
@@ -172,6 +204,141 @@ def login():
 def logout():
     logout_user()
     return jsonify({'success': True, 'message': 'Logged out successfully.'})
+
+
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return jsonify({'message': 'Already logged in', 'authenticated': True})
+        
+    data = request.get_json() or {}
+    email = data.get('email', '').strip()
+    
+    if not email:
+        return jsonify({'message': 'Email address is required.'}), 400
+        
+    user = User.query.filter_by(email=email).first()
+    
+    # Standard security practice: return success even if user not found, 
+    # but internally we only generate and send the token if user exists.
+    success_msg = "If the email is registered, a 6-digit verification code has been generated."
+    
+    if user:
+        import secrets
+        from datetime import datetime, timedelta
+        
+        # Generate a secure 6-digit OTP
+        otp = str(secrets.randbelow(900000) + 100000)
+        user.reset_token = otp
+        user.reset_token_expiry = datetime.utcnow() + timedelta(minutes=15)
+        db.session.commit()
+        
+        # Try sending the email via user's SMTP settings
+        settings = Settings.query.filter_by(user_id=user.id).first()
+        email_sent = False
+        error_info = ""
+        
+        if settings and settings.gmail_address and settings.gmail_app_password:
+            subject = "Password Reset Verification Code - MAIL SARTHI"
+            body_html = f"""
+            <h3>Password Reset Verification Code</h3>
+            <p>Hello {user.username},</p>
+            <p>We received a request to reset the password for your MAIL SARTHI account.</p>
+            <p>Your 6-digit verification code (OTP) is:</p>
+            <p style="font-size:24px; font-weight:bold; letter-spacing:2px; color:#6366f1;">{otp}</p>
+            <p>This code is valid for 15 minutes.</p>
+            <p>If you did not request this, you can safely ignore this email.</p>
+            """
+            try:
+                success, err = send_campaign_email(
+                    settings=settings,
+                    recipient_email=user.email,
+                    recipient_name=user.username,
+                    subject=subject,
+                    body_html=body_html,
+                    campaign_name="Password Reset OTP"
+                )
+                if success:
+                    email_sent = True
+                else:
+                    error_info = err or "SMTP transmission failed"
+            except Exception as e:
+                error_info = str(e)
+        else:
+            error_info = "SMTP settings not configured for this user"
+            
+        if not email_sent:
+            # Fallback for development/testing: log OTP to stdout and file
+            log_msg = f"PASSWORD RESET OTP (FALLBACK): User {user.username} ({user.email}) requested reset. OTP: {otp}. Error: {error_info}"
+            print(f"=== {log_msg} ===", flush=True)
+            log_to_file(Config.ERROR_LOG, log_msg)
+            log_to_file(Config.SENT_LOG, f"SUCCESS (CONSOLE FALLBACK): Reset OTP {otp} generated for {user.email}")
+            
+            return jsonify({
+                'success': True,
+                'message': f"{success_msg} (Development Mode: Check server console or logs/sent.log to retrieve it)"
+            })
+            
+        return jsonify({
+            'success': True,
+            'message': "A 6-digit verification code has been sent to your email address."
+        })
+        
+    # User not found (return success to prevent email enumeration)
+    return jsonify({
+        'success': True,
+        'message': success_msg
+    })
+
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    if current_user.is_authenticated:
+        return jsonify({'message': 'Already logged in', 'authenticated': True})
+        
+    data = request.get_json() or {}
+    email = data.get('email', '').strip()
+    otp = data.get('otp', '').strip()
+    password = data.get('password', '')
+    confirm_password = data.get('confirm_password', '')
+    
+    if not email:
+        return jsonify({'message': 'Email address is missing.'}), 400
+        
+    if not otp:
+        return jsonify({'message': 'Verification code (OTP) is missing.'}), 400
+        
+    if not password:
+        return jsonify({'message': 'Password is required.'}), 400
+        
+    if password != confirm_password:
+        return jsonify({'message': 'Passwords do not match.'}), 400
+        
+    user = User.query.filter_by(email=email).first()
+    
+    if not user or user.reset_token != otp:
+        return jsonify({'message': 'Invalid verification code (OTP) or email.'}), 400
+        
+    if user.reset_token_expiry < datetime.utcnow():
+        # Clear expired token
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        return jsonify({'message': 'This verification code has expired.'}), 400
+        
+    try:
+        user.set_password(password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Password has been reset successfully. You can now login.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        log_to_file(Config.ERROR_LOG, f"Password reset save error: {str(e)}")
+        return jsonify({'message': 'A database error occurred while updating your password.'}), 500
 
 
 # --- DASHBOARD & ANALYTICS ---
