@@ -7,6 +7,7 @@ MAIL SARTHI is a full-stack, secure, and modern SaaS-like email campaign managem
 ## Core Features
 
 - 🔐 **Secure User Authentication**: Clean sign-up/login flows with secure hashed passwords (`werkzeug.security`) and protection against session hijacking.
+- 🔑 **OTP Password Recovery**: Unified 2-step password reset workflow utilizing a 6-digit OTP code sent via SMTP (with a terminal console fallback in development) and 15-minute verification windows.
 - 📊 **Premium Live Dashboard**: Real-time summary metrics (delivered/failed counts, contacts, limit utilization progress bar) and visual delivery breakdown using Chart.js.
 - 📁 **CSV Contact Management**: Drag-and-drop CSV importer with client-side parsing, email formatting validation, row counts, duplicate deduplication, and a sample template download.
 - ✍️ **Rich Text HTML Composer**: WYSIWYG rich text editor using Quill.js supporting variable buttons (`{name}`, `{email}`) and a side-by-side compiled live preview.
@@ -21,37 +22,39 @@ MAIL SARTHI is a full-stack, secure, and modern SaaS-like email campaign managem
 ## Project Structure
 
 ```
-email_automation/
-├── app.py                  # Main Flask Web App & routing
-├── config.py               # Flask environments and directory initialization
-├── database.py             # SQLAlchemy models schema
-├── mailer.py               # SMTP engine & flat-file log writers
-├── scheduler.py            # Background worker thread (rate limits & queue resets)
-├── requirements.txt        # Backend dependencies
+EmailSarthi/
+├── start.bat               # Easy startup batch script for Windows
+├── render.yaml             # Render deployment configuration
 │
-├── database/
-│   └── database.db         # Self-initialized SQLite DB file
-├── uploads/                # Directory for CSV file uploads
-├── logs/
-│   ├── sent.log            # Successful delivery logs (timestamped)
-│   ├── failed.log          # Delivery failures list (timestamped)
-│   └── error.log           # System-level error trace logs
+├── backend/                # Backend API Server
+│   ├── app.py              # Main Flask Web App & API routing
+│   ├── config.py           # Configuration environment setup
+│   ├── database.py         # SQLAlchemy models schema & models
+│   ├── mailer.py           # SMTP transmission engine & log writers
+│   ├── scheduler.py        # Background scheduler queue thread
+│   ├── requirements.txt    # Python dependencies listing
+│   │
+│   ├── database/           # SQLite local storage
+│   ├── uploads/            # Temporary attachments & uploads directory
+│   └── logs/               # Audit and debug logs output
 │
-├── templates/              # Jinja2 HTML views
-│   ├── base.html           # Core layout header/sidebar view
-│   ├── login.html          # Authentication - Login
-│   ├── register.html       # Authentication - Register
-│   ├── dashboard.html      # Overview & Campaign controls
-│   ├── upload.html         # CSV Upload and Client Parser Preview
-│   ├── composer.html       # Quill WYSIWYG Editor and live renders
-│   ├── settings.html       # SMTP & Throttle config
-│   └── logs.html           # Historical delivery registries
-│
-└── static/                 # Static Assets
-    ├── css/
-    │   └── style.css       # Custom stylesheets & Dark mode properties
-    └── js/
-        └── main.js         # CSV parser, theme toggles, and status triggers
+└── frontend/               # Frontend Client (served statically)
+    ├── index.html          # Portal landing / redirect entrypoint
+    ├── login.html          # Sign-in panel interface
+    ├── register.html       # Sign-up account interface
+    ├── forgot-password.html# OTP-based recovery & reset workflow
+    ├── dashboard.html      # Stats summary & campaign controllers
+    ├── upload.html         # CSV upload & table import viewer
+    ├── composer.html       # Rich text editor composer
+    ├── templates.html      # Saved message layout selector
+    ├── send_email.html     # Single email direct mailer
+    ├── logs.html           # Audit log search tables
+    │
+    └── static/             # Static Assets
+        ├── css/
+        │   └── style.css   # Custom layouts & Dark theme configurations
+        └── js/
+            └── main.js     # Global API client wrappers & theme routines
 ```
 
 ---
@@ -105,20 +108,27 @@ To protect your account, Gmail **does not allow** logging in using your standard
 
 ## Running the Application
 
-Once dependencies are installed, you can launch the application:
+Once dependencies are installed, you can launch the application by running the startup batch script (on Windows):
 
 ```bash
+start.bat
+```
+
+Or run the server command manually:
+
+```bash
+cd backend
 python app.py
 ```
 
 The system will:
-1. Automatically create missing folders (`database/`, `uploads/`, `logs/`).
-2. Run database migration mappings to create `database.db`.
+1. Automatically create missing folders (`backend/database/`, `backend/uploads/`, `backend/logs/`).
+2. Run database migration mappings (such as checking/adding columns on start).
 3. Spawn a background thread running the queue scheduler.
 4. Launch the web application on local port `5000`.
 
 Open your browser and navigate to:
-**[http://127.0.5.1:5000](http://127.0.0.1:5000)** (or `http://localhost:5000`)
+**[http://127.0.0.1:5000](http://127.0.0.1:5000)** (or `http://localhost:5000`)
 
 ---
 
